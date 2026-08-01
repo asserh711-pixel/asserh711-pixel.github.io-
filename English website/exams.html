@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>الامتحانات والتطبيقات - أكاديمية عبدالعزيز</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style> body { font-family: 'Cairo', sans-serif; } </style>
+</head>
+<body class="bg-slate-100 text-gray-800 antialiased min-h-screen p-4 md:p-8">
+
+  <div class="max-w-3xl mx-auto space-y-8">
+    
+    <!-- الهيدر -->
+    <header class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-extrabold text-emerald-600">📝 الامتحانات الإلكترونية</h1>
+        <p class="text-sm text-gray-500 mt-1">اختر اختبارك وابدأ التقييم المباشر</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="profile.html" class="bg-blue-50 text-blue-600 font-bold px-4 py-2 rounded-xl text-sm hover:bg-blue-100 transition">
+          👤 حسابي والنتائج
+        </a>
+        <a href="index.html" class="bg-gray-100 text-gray-700 font-bold px-4 py-2 rounded-xl text-sm hover:bg-gray-200 transition">
+          📚 الدروس
+        </a>
+      </div>
+    </header>
+
+    <!-- الفلترة -->
+    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-600 mb-2">المرحلة:</label>
+          <select id="stageFilter" onchange="loadExams()" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 font-bold">
+            <option value="all">كل المراحل</option>
+            <option value="prep">إعدادي</option>
+            <option value="secondary">ثانوي</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-600 mb-2">الصف:</label>
+          <select id="gradeFilter" onchange="loadExams()" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 font-bold">
+            <option value="all">كل الصفوف</option>
+            <option value="1">الأول</option>
+            <option value="2">الثاني</option>
+            <option value="3">الثالث</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- قائمة الامتحانات / كارت الامتحان النشط -->
+    <div id="examsListContainer" class="space-y-4">
+      <!-- تحميل الامتحانات المتاحة هنا -->
+    </div>
+
+  </div>
+
+  <!-- مكتبات Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // إعدادات Firebase الخاصة بالمشروع
+    const firebaseConfig = {
+      apiKey: "AIzaSyBBKKh7XeQv0k12fXq4NyFy18AVg9wEqyE",
+      authDomain: "abdelaziz-academy-c1196.firebaseapp.com",
+      projectId: "abdelaziz-academy-c1196",
+      storageBucket: "abdelaziz-academy-c1196.firebasestorage.app",
+      messagingSenderId: "955955108448",
+      appId: "1:955955108448:web:0ff8be1fe9fb51c4f08105"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const stageNames = { prep: 'إعدادي', secondary: 'ثانوي' };
+    let currentLoadedExams = []; // مصفوفة لتخزين الامتحانات المحملة مؤقتاً لتصحيحها بسهولة
+
+    // دالة تحميل الامتحانات من Firebase أونلاين
+    function loadExams() {
+      const selectedStage = document.getElementById('stageFilter').value;
+      const selectedGrade = document.getElementById('gradeFilter').value;
+      const container = document.getElementById('examsListContainer');
+      
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl p-8 text-center text-emerald-600 font-bold border border-gray-100 shadow-sm">
+          ⏳ جاري جلب الامتحانات أونلاين...
+        </div>`;
+
+      let query = db.collection("exams");
+
+      if (selectedStage !== 'all') {
+        query = query.where("stage", "==", selectedStage);
+      }
+      if (selectedGrade !== 'all') {
+        query = query.where("grade", "==", selectedGrade.toString());
+      }
+
+      query.get().then((querySnapshot) => {
+        currentLoadedExams = [];
+        querySnapshot.forEach((doc) => {
+          currentLoadedExams.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (currentLoadedExams.length === 0) {
+          container.innerHTML = `
+            <div class="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
+              <div class="text-5xl mb-4">📭</div>
+              <h3 class="text-lg font-bold text-gray-700">لا توجد امتحانات متاحة حالياً</h3>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = currentLoadedExams.map(exam => `
+          <div class="bg-white rounded-2xl p-6 shadow-xl border border-gray-100 flex items-center justify-between">
+            <div>
+              <span class="inline-block bg-emerald-100 text-emerald-700 font-extrabold text-xs px-3 py-1 rounded-full mb-2">
+                ${stageNames[exam.stage] || exam.stage} - الصف ${exam.grade}
+              </span>
+              <h3 class="text-xl font-bold text-gray-800">${exam.title}</h3>
+              <p class="text-sm text-gray-500 mt-1">عدد الأسئلة: ${exam.questions ? exam.questions.length : 0}</p>
+            </div>
+            <button onclick="startExam('${exam.id}')" class="bg-emerald-600 text-white font-bold px-5 py-3 rounded-xl hover:bg-emerald-700 transition">
+              بدء الامتحان 🚀
+            </button>
+          </div>
+        `).join('');
+      }).catch((error) => {
+        console.error("خطأ جلب الامتحانات: ", error);
+        container.innerHTML = `
+          <div class="bg-red-50 text-red-600 p-6 rounded-2xl text-center font-bold border border-red-200">
+            حدث خطأ أثناء تحميل الامتحانات، يرجى المحاولة لاحقاً.
+          </div>`;
+      });
+    }
+
+    // دالة بدء تقديم الامتحان
+    function startExam(examId) {
+      const exam = currentLoadedExams.find(e => e.id === examId);
+      if (!exam || !exam.questions) return;
+
+      const container = document.getElementById('examsListContainer');
+      
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-gray-100 space-y-6">
+          <div class="border-b border-gray-100 pb-4 flex justify-between items-center">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800">${exam.title}</h2>
+              <p class="text-sm text-gray-500">أجب عن جميع الأسئلة التالية ثم اضغط تصحيح</p>
+            </div>
+            <button onclick="loadExams()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs px-3 py-2 rounded-lg transition">
+              ✖️ إلغاء
+            </button>
+          </div>
+
+          <form id="activeExamForm" onsubmit="submitExam(event, '${exam.id}')" class="space-y-6">
+            ${exam.questions.map((q, qIndex) => `
+              <div class="p-4 bg-slate-50 rounded-xl border border-gray-200 space-y-3">
+                <h4 class="font-bold text-gray-800">${qIndex + 1}. ${q.questionText}</h4>
+                <div class="space-y-2">
+                  ${q.options.map((opt, optIndex) => `
+                    <label class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-emerald-50 transition">
+                      <input type="radio" name="q_${qIndex}" value="${optIndex}" required class="w-4 h-4 text-emerald-600">
+                      <span class="text-sm font-semibold text-gray-700">${opt}</span>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+
+            <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-700 transition">
+              إنهاء وتصحيح الامتحان 🎯
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    // دالة احتساب النتيجة والتصحيح وحفظها في سجل الطالب الحالي فقط وبشكل مستقل
+    function submitExam(e, examId) {
+      e.preventDefault();
+      const exam = currentLoadedExams.find(e => e.id === examId);
+      if (!exam || !exam.questions) return;
+
+      let score = 0;
+      const formData = new FormData(e.target);
+
+      exam.questions.forEach((q, index) => {
+        const selected = parseInt(formData.get(`q_${index}`));
+        if (selected === parseInt(q.correctOption)) {
+          score++;
+        }
+      });
+
+      // جلب بيانات الطالب الحالي
+      const savedData = localStorage.getItem("currentStudent") || localStorage.getItem("studentData");
+      let studentPhone = "";
+      let studentName = "الطالب";
+
+      if (savedData) {
+        const student = JSON.parse(savedData);
+        studentPhone = student.phone || "";
+        studentName = student.name || "الطالب";
+      } else {
+        studentName = localStorage.getItem("studentName") || "الطالب";
+      }
+
+      // تجهيز الكيان الخاص بالنتيجة
+      const examResultData = {
+        title: exam.title,
+        date: new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }),
+        score: score,
+        total: exam.questions.length
+      };
+
+      // إنشاء مفتاح فريد خاص بهذا الطالب فقط بناءً على هاتفه أو اسمه
+      const identifier = studentPhone || studentName;
+      const studentKey = "examResults_" + identifier.replace(/\s+/g, '_');
+
+      // حفظ النتيجة حصرياً في سجل هذا الطالب فقط
+      let storedResults = JSON.parse(localStorage.getItem(studentKey)) || [];
+      storedResults.push(examResultData);
+      localStorage.setItem(studentKey, JSON.stringify(storedResults));
+
+      alert(`أحسنت يا ${studentName}! درجتك هي: ${score} من ${exam.questions.length} 🎉\nتم حفظ النتيجة في سجلك الشخصي بنجاح.`);
+      loadExams();
+    }
+
+    // التحميل المبدئي عند فتح الصفحة
+    loadExams();
+  </script>
+
+</body>
+</html>
